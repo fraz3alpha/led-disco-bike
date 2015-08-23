@@ -9,6 +9,8 @@
                           // driven with a pull-up resistor so the switch should
                           // pull the pin to ground momentarily.  On a high -> low
                           // transition the button press logic will execute.
+#define BRIGHTNESS_BUTTON_PIN 3
+
 
 #define PIXEL_PIN    6    // Digital IO pin connected to the NeoPixels.
 
@@ -97,9 +99,13 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, NEO_GRB + NE
 bool oldState = HIGH;
 int showType = -1;
 
+bool oldBrightnessState = HIGH;
+int brightnessCounter = 1;
+
 void setup() {
   Serial.begin(9600);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(BRIGHTNESS_BUTTON_PIN, INPUT_PULLUP);
   strip.begin();
   roadMode();
   strip.show(); // Initialize all pixels to 'off'
@@ -112,7 +118,6 @@ void loop() {
 
   // Get current button state.
   bool newState = digitalRead(BUTTON_PIN);
-  Serial.println(newState);
   
   // Check if state changed from high to low (button press).
   if (newState == LOW && oldState == HIGH) {
@@ -131,6 +136,24 @@ void loop() {
 
   // Set the last button state to the old state.
   oldState = newState;
+
+  bool newBrightnessState = digitalRead(BRIGHTNESS_BUTTON_PIN);
+
+    // Check if state changed from high to low (button press).
+  if (newBrightnessState == LOW && oldBrightnessState == HIGH) {
+    // Short delay to debounce button.
+    delay(20);
+    // Check if button is still low after debounce.
+    newBrightnessState = digitalRead(BRIGHTNESS_BUTTON_PIN);
+    if (newBrightnessState == LOW) {
+      brightnessCounter++;
+      if (brightnessCounter > 3) {
+        brightnessCounter = 0;
+      }
+    }
+  }
+
+  oldBrightnessState = newBrightnessState;
   
   doShow(counter, showType);
   delay(10);
@@ -162,6 +185,30 @@ void doShow(uint8_t counter, int i) {
   }
 }
 
+void setPixelColor(int position, uint32_t colour) {
+  uint32_t newRed = ((colour >> 16) & 0xFF);
+  uint32_t newGreen = ((colour >> 8) & 0xFF);
+  uint32_t newBlue = (colour & 0xFF);
+
+  switch(brightnessCounter) {
+    case 0:
+      break;
+    case 1:
+      colour = ( ((newRed>>1) << 16) + ((newGreen>>1) << 8) + (newBlue>>1) );
+      break;
+    case 2:
+      colour = ( ((newRed>>2) << 16) + ((newGreen>>2) << 8) + (newBlue>>2) );
+      break;
+    case 3:
+      colour = ( ((newRed>>3) << 16) + ((newGreen>>3) << 8) + (newBlue>>3) );
+      break;
+    default:
+      break;
+  }
+  
+  strip.setPixelColor(position, colour);
+}
+
 /*
  * Set a couple of pixels on the front, so that I know it's on
  *  and working
@@ -169,13 +216,13 @@ void doShow(uint8_t counter, int i) {
 void firstRun(void) {
   int i=0;
   for (i=0; i<PIXEL_COUNT; i++) {
-    strip.setPixelColor(i, BLACK);
+    setPixelColor(i, BLACK);
   }
 
-  strip.setPixelColor(L_FORK_START+L_FORK_LENGTH-1, WHITE);
-  strip.setPixelColor(R_FORK_START+R_FORK_LENGTH-1, WHITE);
-  strip.setPixelColor(L_MUDGUARD_START, RED);
-  strip.setPixelColor(R_MUDGUARD_START+R_MUDGUARD_LENGTH-1, RED);
+  setPixelColor(L_FORK_START+L_FORK_LENGTH-1, WHITE);
+  setPixelColor(R_FORK_START+R_FORK_LENGTH-1, WHITE);
+  setPixelColor(L_MUDGUARD_START, RED);
+  setPixelColor(R_MUDGUARD_START+R_MUDGUARD_LENGTH-1, RED);
 
   strip.show();
 }
@@ -183,7 +230,7 @@ void firstRun(void) {
 void off(void) {
   int i=0;
   for (i=0; i<PIXEL_COUNT; i++) {
-    strip.setPixelColor(i, BLACK);
+    setPixelColor(i, BLACK);
   }
   strip.show();
 }
@@ -193,7 +240,7 @@ void disco(uint8_t counter) {
   if (counter % 32 == 0) {
     for (i=0; i<PIXEL_COUNT; i++) {
       long rand = random(6);
-      strip.setPixelColor(i, colours[rand]);
+      setPixelColor(i, colours[rand]);
     }
     strip.show();
   }
@@ -203,17 +250,17 @@ void disco(uint8_t counter) {
 void roadMode(void) {
   int i=0;
   for (i=L_FORK_START; i<L_FORK_START+L_FORK_LENGTH; i++) {
-    strip.setPixelColor(i, WHITE);
+    setPixelColor(i, WHITE);
   }
   for (i=R_FORK_START; i<R_FORK_START+R_FORK_LENGTH; i++) {
-    strip.setPixelColor(i, WHITE);
+    setPixelColor(i, WHITE);
   }
   for (i=L_MUDGUARD_START; i<L_MUDGUARD_START+L_MUDGUARD_LENGTH; i++) {
-    strip.setPixelColor(i, RED);
+    setPixelColor(i, RED);
   }
 
   for (i=R_MUDGUARD_START; i<R_MUDGUARD_START+R_MUDGUARD_LENGTH; i++) {
-    strip.setPixelColor(i, RED);
+    setPixelColor(i, RED);
   }
   strip.show();
   
@@ -234,47 +281,47 @@ void standardRainbow(uint8_t counter) {
   j = counter;
     // Mudguard
     for(i=0; i<13; i++) {
-      strip.setPixelColor(L_MUDGUARD_START + L_MUDGUARD_LENGTH - i, Wheel((i+j) & 255));
-      strip.setPixelColor(R_MUDGUARD_START + i, Wheel((i+j) & 255));
+      setPixelColor(L_MUDGUARD_START + L_MUDGUARD_LENGTH - i, Wheel((i+j) & 255));
+      setPixelColor(R_MUDGUARD_START + i, Wheel((i+j) & 255));
     }
     // Chain Stay
     for(i=0; i<4; i++) {
       k=4;
-      strip.setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH - i, Wheel((k+i+j) & 255));
-      strip.setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH - i, Wheel((k+i+j) & 255));
+      setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH - i, Wheel((k+i+j) & 255));
+      setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH - i, Wheel((k+i+j) & 255));
     }
     // Seat Stay
     for(i=0; i<9; i++) {
       k=4;
-      strip.setPixelColor(L_SEAT_STAY_START + L_SEAT_STAY_LENGTH - i, Wheel((k+i+j) & 255));
-      strip.setPixelColor(R_SEAT_STAY_START + L_SEAT_STAY_LENGTH - i, Wheel((k+i+j) & 255));
+      setPixelColor(L_SEAT_STAY_START + L_SEAT_STAY_LENGTH - i, Wheel((k+i+j) & 255));
+      setPixelColor(R_SEAT_STAY_START + L_SEAT_STAY_LENGTH - i, Wheel((k+i+j) & 255));
     }
     // Seat post
     for (k=0; k<8; k++) {
       i=13;
-      strip.setPixelColor(L_SEAT_TUBE_START + k, Wheel((i+j) & 255));
-      strip.setPixelColor(R_SEAT_TUBE_START + k, Wheel((i+j) & 255));
+      setPixelColor(L_SEAT_TUBE_START + k, Wheel((i+j) & 255));
+      setPixelColor(R_SEAT_TUBE_START + k, Wheel((i+j) & 255));
     }
     // Down Tube
     for(i=0; i<17; i++) {
       k = 14;
-      strip.setPixelColor(L_DOWN_TUBE_START + i, Wheel((k+i+j) & 255));
-      strip.setPixelColor(R_DOWN_TUBE_START + i, Wheel((k+i+j) & 255));
+      setPixelColor(L_DOWN_TUBE_START + i, Wheel((k+i+j) & 255));
+      setPixelColor(R_DOWN_TUBE_START + i, Wheel((k+i+j) & 255));
     }
     // Crossbar
     for(i=0; i<17; i++) {
       k = 14;
       // Skip 0, 8 and 16
       if (i %8 != 0) {
-        strip.setPixelColor(L_CROSSBAR_START + i, Wheel((k+i+j) & 255));
-        strip.setPixelColor(R_CROSSBAR_START + i, Wheel((k+i+j) & 255));
+        setPixelColor(L_CROSSBAR_START + i, Wheel((k+i+j) & 255));
+        setPixelColor(R_CROSSBAR_START + i, Wheel((k+i+j) & 255));
       }
     }
     // Forks
     for (k=0; k<7; k++) {
       i=31;
-      strip.setPixelColor(L_FORK_START + k, Wheel((i+j) & 255));
-      strip.setPixelColor(R_FORK_START + k, Wheel((i+j) & 255));
+      setPixelColor(L_FORK_START + k, Wheel((i+j) & 255));
+      setPixelColor(R_FORK_START + k, Wheel((i+j) & 255));
     }
     
     strip.show();
@@ -289,44 +336,44 @@ void standardRainbow2(uint8_t counter) {
     // Mudguard
     for(i=0; i<13; i++) {
       k=0;
-      strip.setPixelColor(R_MUDGUARD_START + R_MUDGUARD_LENGTH -1 - i, Wheel(i+k+j % 255));
-      strip.setPixelColor(L_MUDGUARD_START + i, Wheel(i+k+j % 255));
+      setPixelColor(R_MUDGUARD_START + R_MUDGUARD_LENGTH -1 - i, Wheel(i+k+j % 255));
+      setPixelColor(L_MUDGUARD_START + i, Wheel(i+k+j % 255));
     }
     // Chain Stay
     for(i=0; i<4; i++) {
       k=5;
-      strip.setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Wheel(i+k+j % 255));
-      strip.setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Wheel(i+k+j % 255));
+      setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Wheel(i+k+j % 255));
+      setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Wheel(i+k+j % 255));
     }
     // Seat Stay
     for(i=0; i<9; i++) {
       k=4;
-      strip.setPixelColor(L_SEAT_STAY_START + i, Wheel(i+k+j % 255));
-      strip.setPixelColor(R_SEAT_STAY_START + i, Wheel(i+k+j % 255));
+      setPixelColor(L_SEAT_STAY_START + i, Wheel(i+k+j % 255));
+      setPixelColor(R_SEAT_STAY_START + i, Wheel(i+k+j % 255));
     }
     // Seat post
     for (k=0; k<8; k++) {
       i=13;
-      strip.setPixelColor(L_SEAT_TUBE_START + k, Wheel(i+j % 255));
-      strip.setPixelColor(R_SEAT_TUBE_START + k, Wheel(i+j % 255));
+      setPixelColor(L_SEAT_TUBE_START + k, Wheel(i+j % 255));
+      setPixelColor(R_SEAT_TUBE_START + k, Wheel(i+j % 255));
     }
     // Down Tube
     for(i=0; i<17; i++) {
       k = 15;
-      strip.setPixelColor(L_DOWN_TUBE_START + L_DOWN_TUBE_LENGTH - 1- i, Wheel(i+k+j % 255));
-      strip.setPixelColor(R_DOWN_TUBE_START + R_DOWN_TUBE_LENGTH - 1- i, Wheel(i+k+j % 255));
+      setPixelColor(L_DOWN_TUBE_START + L_DOWN_TUBE_LENGTH - 1- i, Wheel(i+k+j % 255));
+      setPixelColor(R_DOWN_TUBE_START + R_DOWN_TUBE_LENGTH - 1- i, Wheel(i+k+j % 255));
     }
     // Crossbar
     for(i=0; i<14; i++) {
       k = 14;
-        strip.setPixelColor(L_CROSSBAR_START + i, Wheel(i+k+j % 255));
-        strip.setPixelColor(R_CROSSBAR_START + i, Wheel(i+k+j % 255));
+        setPixelColor(L_CROSSBAR_START + i, Wheel(i+k+j % 255));
+        setPixelColor(R_CROSSBAR_START + i, Wheel(i+k+j % 255));
     }
     // Forks
     for (i=0; i<7; i++) {
       k=31;
-      strip.setPixelColor(L_FORK_START + i, Wheel(i+k+j % 255));
-      strip.setPixelColor(R_FORK_START + i, Wheel(i+k+j % 255));
+      setPixelColor(L_FORK_START + i, Wheel(i+k+j % 255));
+      setPixelColor(R_FORK_START + i, Wheel(i+k+j % 255));
     }
     
     strip.show();
@@ -341,44 +388,44 @@ void frontToBackRainbow(uint8_t counter) {
     // Mudguard
     for(i=0; i<13; i++) {
       k=0;
-      strip.setPixelColor(R_MUDGUARD_START + R_MUDGUARD_LENGTH -1 - i, Strobe(i+k, j));
-      strip.setPixelColor(L_MUDGUARD_START + i, Strobe(i+k, j));
+      setPixelColor(R_MUDGUARD_START + R_MUDGUARD_LENGTH -1 - i, Strobe(i+k, j));
+      setPixelColor(L_MUDGUARD_START + i, Strobe(i+k, j));
     }
     // Chain Stay
     for(i=0; i<4; i++) {
       k=5;
-      strip.setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Strobe(i+k, j));
-      strip.setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Strobe(i+k, j));
+      setPixelColor(L_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Strobe(i+k, j));
+      setPixelColor(R_CHAIN_STAY_START + L_CHAIN_STAY_LENGTH -1 - i, Strobe(i+k, j));
     }
     // Seat Stay
     for(i=0; i<9; i++) {
       k=4;
-      strip.setPixelColor(L_SEAT_STAY_START + i, Strobe(i+k, j));
-      strip.setPixelColor(R_SEAT_STAY_START + i, Strobe(i+k, j));
+      setPixelColor(L_SEAT_STAY_START + i, Strobe(i+k, j));
+      setPixelColor(R_SEAT_STAY_START + i, Strobe(i+k, j));
     }
     // Seat post
     for (k=0; k<8; k++) {
       i=13;
-      strip.setPixelColor(L_SEAT_TUBE_START + k, Strobe(i, j));
-      strip.setPixelColor(R_SEAT_TUBE_START + k, Strobe(i, j));
+      setPixelColor(L_SEAT_TUBE_START + k, Strobe(i, j));
+      setPixelColor(R_SEAT_TUBE_START + k, Strobe(i, j));
     }
     // Down Tube
     for(i=0; i<17; i++) {
       k = 15;
-      strip.setPixelColor(L_DOWN_TUBE_START + L_DOWN_TUBE_LENGTH - 1- i, Strobe(i+k, j));
-      strip.setPixelColor(R_DOWN_TUBE_START + R_DOWN_TUBE_LENGTH - 1- i, Strobe(i+k, j));
+      setPixelColor(L_DOWN_TUBE_START + L_DOWN_TUBE_LENGTH - 1- i, Strobe(i+k, j));
+      setPixelColor(R_DOWN_TUBE_START + R_DOWN_TUBE_LENGTH - 1- i, Strobe(i+k, j));
     }
     // Crossbar
     for(i=0; i<14; i++) {
       k = 14;
-        strip.setPixelColor(L_CROSSBAR_START + i, Strobe(i+k, j));
-        strip.setPixelColor(R_CROSSBAR_START + i, Strobe(i+k, j));
+        setPixelColor(L_CROSSBAR_START + i, Strobe(i+k, j));
+        setPixelColor(R_CROSSBAR_START + i, Strobe(i+k, j));
     }
     // Forks
     for (i=0; i<7; i++) {
       k=31;
-      strip.setPixelColor(L_FORK_START + i, Strobe(i+k, j));
-      strip.setPixelColor(R_FORK_START + i, Strobe(i+k, j));
+      setPixelColor(L_FORK_START + i, Strobe(i+k, j));
+      setPixelColor(R_FORK_START + i, Strobe(i+k, j));
     }
     
     strip.show();
@@ -397,7 +444,7 @@ uint32_t Strobe(uint8_t line, uint8_t counter) {
 // Fill the dots one after the other with a color
 void colorWipe(uint32_t c, uint8_t wait) {
   for(uint16_t i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, c);
+      setPixelColor(i, c);
       strip.show();
       delay(wait);
   }
@@ -408,7 +455,7 @@ void rainbow(uint8_t counter) {
 
   j = counter;
     for(i=0; i<strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel((i+j) & 255));
+      setPixelColor(i, Wheel((i+j) & 255));
     }
     strip.show();
 }
@@ -419,7 +466,7 @@ void rainbowCycle(uint8_t counter) {
 
   j = counter;
     for(i=0; i< strip.numPixels(); i++) {
-      strip.setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
+      setPixelColor(i, Wheel(((i * 256 / strip.numPixels()) + j) & 255));
     }
     strip.show();
 }
@@ -429,12 +476,12 @@ void theaterChase(uint8_t counter, uint32_t c, uint8_t wait) {
   for (int j=0; j<10; j++) {  //do 10 cycles of chasing
     for (int q=0; q < 3; q++) {
       for (int i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, c);    //turn every third pixel on
+        setPixelColor(i+q, c);    //turn every third pixel on
       }
       strip.show();
          
       for (int i=0; i < strip.numPixels(); i=i+3) {
-        strip.setPixelColor(i+q, 0);        //turn every third pixel off
+        setPixelColor(i+q, 0);        //turn every third pixel off
       }
     }
   }
@@ -445,14 +492,14 @@ void theaterChaseRainbow(uint8_t wait) {
   for (int j=0; j < 256; j++) {     // cycle all 256 colors in the wheel
     for (int q=0; q < 3; q++) {
         for (int i=0; i < strip.numPixels(); i=i+3) {
-          strip.setPixelColor(i+q, Wheel( (i+j) % 255));    //turn every third pixel on
+          setPixelColor(i+q, Wheel( (i+j) % 255));    //turn every third pixel on
         }
         strip.show();
        
         delay(wait);
        
         for (int i=0; i < strip.numPixels(); i=i+3) {
-          strip.setPixelColor(i+q, 0);        //turn every third pixel off
+          setPixelColor(i+q, 0);        //turn every third pixel off
         }
     }
   }
