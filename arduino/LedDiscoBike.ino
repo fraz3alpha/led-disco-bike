@@ -95,7 +95,7 @@ uint32_t colours[] = {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00, 0xFF00FF, 0x00FFFF
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 bool oldState = HIGH;
-int showType = 0;
+int showType = -1;
 
 void setup() {
   Serial.begin(9600);
@@ -112,6 +112,7 @@ void loop() {
 
   // Get current button state.
   bool newState = digitalRead(BUTTON_PIN);
+  Serial.println(newState);
   
   // Check if state changed from high to low (button press).
   if (newState == LOW && oldState == HIGH) {
@@ -139,6 +140,9 @@ void loop() {
 
 void doShow(uint8_t counter, int i) {
   switch(i){
+    case -1:
+            firstRun();
+            break;
     case 0: 
             off();
             break;
@@ -156,6 +160,24 @@ void doShow(uint8_t counter, int i) {
     case 5: rainbowCycle(counter);
             break;
   }
+}
+
+/*
+ * Set a couple of pixels on the front, so that I know it's on
+ *  and working
+ */
+void firstRun(void) {
+  int i=0;
+  for (i=0; i<PIXEL_COUNT; i++) {
+    strip.setPixelColor(i, BLACK);
+  }
+
+  strip.setPixelColor(L_FORK_START+L_FORK_LENGTH-1, WHITE);
+  strip.setPixelColor(R_FORK_START+R_FORK_LENGTH-1, WHITE);
+  strip.setPixelColor(L_MUDGUARD_START, RED);
+  strip.setPixelColor(R_MUDGUARD_START+R_MUDGUARD_LENGTH-1, RED);
+
+  strip.show();
 }
 
 void off(void) {
